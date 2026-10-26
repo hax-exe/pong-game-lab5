@@ -1,3 +1,4 @@
 __pycache__/
 *.py[cod]
 .venv/
+.pong_game_lab5_progress.json
