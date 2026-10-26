@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+"""View layer responsible for translating model state into pixels/text."""
+
 import pygame
 
 from . import settings
@@ -7,6 +9,8 @@ from .model import GameMode, GameModel
 
 
 class GameView:
+    """Rendering-only surface helper for menu and gameplay scenes."""
+
     def __init__(self, screen: pygame.Surface) -> None:
         self.screen = screen
         self.title_font = pygame.font.Font(None, 64)
@@ -14,13 +18,19 @@ class GameView:
         self.body_font = pygame.font.Font(None, 30)
 
     def clear(self) -> None:
+        """Paint a clean background before drawing a frame."""
+
         self.screen.fill(settings.COLOR_BG)
 
     def text(self, value: str, font: pygame.font.Font, color: tuple[int, int, int], center: tuple[int, int]) -> None:
+        """Render centered text, used by both menu and in-game HUD."""
+
         surface = font.render(value, True, color)
         self.screen.blit(surface, surface.get_rect(center=center))
 
     def menu(self) -> None:
+        """Draw the main menu with mode options and global controls."""
+
         width, height = self.screen.get_size()
         self.clear()
         self.text("PONG", self.title_font, settings.COLOR_ACCENT, (width // 2, 130))
@@ -29,7 +39,10 @@ class GameView:
         self.text("Press 1 or 2 to start • Esc to quit", self.body_font, settings.COLOR_MUTED, (width // 2, 430))
 
     def game(self, model: GameModel) -> None:
+        """Draw one gameplay frame from the current model snapshot."""
+
         self.clear()
+        # Dashed center line reinforces player sides and score positions.
         for y in range(0, model.config.height, 30):
             pygame.draw.rect(self.screen, settings.COLOR_MUTED, (model.config.width // 2 - 2, y, 4, 16))
 
@@ -47,6 +60,7 @@ class GameView:
         self.text("R restart • M menu • Esc quit", self.body_font, settings.COLOR_MUTED, (model.config.width // 2, 22))
 
         if model.winner is not None:
+            # Winner overlay is informational only; controller still owns restart/menu actions.
             self.text(
                 f"Player {model.winner + 1} wins!",
                 self.title_font,
@@ -61,4 +75,6 @@ class GameView:
             )
 
     def present(self) -> None:
+        """Swap back buffer to the screen."""
+
         pygame.display.flip()

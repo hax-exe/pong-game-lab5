@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+"""Model layer: game entities and rules for movement, collisions, and scoring."""
+
 from dataclasses import dataclass, field
 from enum import Enum
 
@@ -8,6 +10,8 @@ from . import settings
 
 @dataclass(frozen=True)
 class GameConfig:
+    """Immutable gameplay tuning values shared by all model entities."""
+
     width: int = settings.SCREEN_WIDTH
     height: int = settings.SCREEN_HEIGHT
     paddle_width: int = settings.PADDLE_WIDTH
@@ -21,6 +25,8 @@ class GameConfig:
 
 
 class GameMode(str, Enum):
+    """Supported game modes used by controller and view."""
+
     SINGLE_PLAYER = "single_player"
     TWO_PLAYER = "two_player"
 
@@ -34,7 +40,10 @@ class Paddle:
     speed: float
 
     def move(self, direction: float, dt: float, bounds_height: int) -> None:
+        """Move vertically and clamp to the visible playfield bounds."""
+
         self.y += direction * self.speed * dt
+        # Clamp prevents paddles from moving off-screen regardless of frame time spikes.
         self.y = max(0.0, min(float(bounds_height - self.height), self.y))
 
     @property
@@ -51,6 +60,8 @@ class Ball:
     vy: float
 
     def move(self, dt: float) -> None:
+        """Advance the ball using velocity * elapsed time."""
+
         self.x += self.vx * dt
         self.y += self.vy * dt
 
@@ -77,6 +88,8 @@ class GameModel:
     config: GameConfig = field(default_factory=GameConfig)
 
     def __post_init__(self) -> None:
+        """Initialize entity state and start the first round."""
+
         self.scores = [0, 0]
         self.winner: int | None = None
         self._serve_direction = 1
@@ -99,16 +112,21 @@ class GameModel:
         self.reset_round(self._serve_direction)
 
     def reset_round(self, serve_direction: int) -> None:
+        """Center entities and serve toward the player who conceded the last point."""
+
         self.left.y = float((self.config.height - self.left.height) / 2)
         self.right.y = float((self.config.height - self.right.height) / 2)
         self.ball.x = float((self.config.width - self.ball.size) / 2)
         self.ball.y = float((self.config.height - self.ball.size) / 2)
         self.ball.vx = self.config.ball_speed_x * float(serve_direction)
         self.ball.vy = self.config.ball_speed_y * float(self._serve_vertical_direction)
+        # Alternate the initial vertical direction so consecutive serves feel less repetitive.
         self._serve_vertical_direction *= -1
         self._serve_direction = serve_direction
 
     def reset_match(self) -> None:
+        """Reset score/winner state and start a fresh opening serve."""
+
         self.scores = [0, 0]
         self.winner = None
         self._serve_direction = 1
@@ -116,7 +134,10 @@ class GameModel:
         self.reset_round(self._serve_direction)
 
     def update(self, dt: float, left_up: bool, left_down: bool, right_up: bool = False, right_down: bool = False) -> None:
+        """Run one simulation step: input -> movement -> collisions -> scoring."""
+
         if self.winner is not None:
+            # Freeze gameplay on win screen until controller requests restart/menu.
             return
 
         self.left.move(float(left_down) - float(left_up), dt, self.config.height)
@@ -132,6 +153,8 @@ class GameModel:
         self._handle_scoring()
 
     def _update_cpu(self, dt: float) -> None:
+        """Move right paddle toward ball center with a dead zone to reduce jitter."""
+
         dead_zone = 8.0
         target = self.ball.y + self.ball.size / 2
         direction = 0.0
@@ -142,6 +165,8 @@ class GameModel:
         self.right.move(direction, dt, self.config.height)
 
     def _handle_wall_collision(self) -> None:
+        """Bounce off top/bottom walls while keeping the ball inside bounds."""
+
         if self.ball.top <= 0:
             self.ball.y = 0.0
             self.ball.vy = abs(self.ball.vy)
@@ -150,6 +175,8 @@ class GameModel:
             self.ball.vy = -abs(self.ball.vy)
 
     def _intersects(self, paddle: Paddle) -> bool:
+        """Axis-aligned overlap check between the ball box and a paddle box."""
+
         return (
             self.ball.right >= paddle.x
             and self.ball.left <= paddle.x + paddle.width
@@ -158,6 +185,8 @@ class GameModel:
         )
 
     def _handle_paddle_collision(self) -> None:
+        """Reflect horizontal velocity when ball contacts a paddle."""
+
         if self.ball.vx < 0 and self._intersects(self.left):
             self.ball.x = self.left.x + self.left.width
             self.ball.vx = abs(self.ball.vx)
@@ -169,17 +198,23 @@ class GameModel:
             self._apply_spin(self.right)
 
     def _apply_spin(self, paddle: Paddle) -> None:
+        """Scale vertical speed by hit offset so edge hits create steeper angles."""
+
         offset = (self.ball.y + self.ball.size / 2 - paddle.center_y) / (paddle.height / 2)
         offset = max(-1.0, min(1.0, offset))
         self.ball.vy = self.config.ball_speed_y * offset
 
     def _handle_scoring(self) -> None:
+        """Award a point when the ball fully leaves left/right boundaries."""
+
         if self.ball.right < 0:
             self._on_score(player=1, serve_direction=-1)
         elif self.ball.left > self.config.width:
             self._on_score(player=0, serve_direction=1)
 
     def _on_score(self, player: int, serve_direction: int) -> None:
+        """Update score, detect winner, and reset the next round when needed."""
+
         self.scores[player] += 1
         if self.scores[player] >= self.config.winning_score:
             self.winner = player

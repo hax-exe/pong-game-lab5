@@ -4,7 +4,11 @@ from pong.model import GameConfig, GameMode, GameModel
 
 
 class TestGameModel(unittest.TestCase):
+    """Behavior-focused tests for core model rules (movement, collisions, scoring)."""
+
     def test_paddle_stays_within_bounds(self) -> None:
+        """Paddle clamping should keep positions inside the visible court."""
+
         model = GameModel(mode=GameMode.TWO_PLAYER)
 
         model.left.y = 0
@@ -16,6 +20,8 @@ class TestGameModel(unittest.TestCase):
         self.assertEqual(model.left.y, float(model.config.height - model.left.height))
 
     def test_ball_moves_with_velocity(self) -> None:
+        """A normal update should advance ball position using current velocity."""
+
         model = GameModel(mode=GameMode.TWO_PLAYER)
         x0, y0 = model.ball.x, model.ball.y
 
@@ -25,6 +31,8 @@ class TestGameModel(unittest.TestCase):
         self.assertNotEqual(model.ball.y, y0)
 
     def test_paddle_collision_reverses_horizontal_velocity(self) -> None:
+        """Hitting a paddle should flip horizontal direction back into play."""
+
         model = GameModel(mode=GameMode.TWO_PLAYER)
         model.ball.x = model.left.x + model.left.width - 1
         model.ball.y = model.left.y + model.left.height / 2
@@ -36,6 +44,8 @@ class TestGameModel(unittest.TestCase):
         self.assertGreater(model.ball.vx, 0)
 
     def test_scoring_and_round_reset(self) -> None:
+        """Crossing a side wall should score and reset the next serve when no winner yet."""
+
         model = GameModel(mode=GameMode.TWO_PLAYER)
         model.ball.x = -model.ball.size - 1
 
@@ -46,6 +56,8 @@ class TestGameModel(unittest.TestCase):
         self.assertAlmostEqual(model.ball.x, (model.config.width - model.ball.size) / 2)
 
     def test_winner_stops_ball(self) -> None:
+        """Reaching winning score should set winner and freeze ball movement."""
+
         config = GameConfig(winning_score=1)
         model = GameModel(mode=GameMode.TWO_PLAYER, config=config)
         model.ball.x = config.width + 1
@@ -58,6 +70,8 @@ class TestGameModel(unittest.TestCase):
         self.assertEqual(model.ball.vy, 0.0)
 
     def test_cpu_moves_toward_ball(self) -> None:
+        """Single-player CPU paddle should track the ball up and down."""
+
         model = GameModel(mode=GameMode.SINGLE_PLAYER)
 
         model.ball.y = 0
